@@ -1,59 +1,59 @@
 # bd-wasm-module-template
 
-📦 **Template repository** per creare moduli **WebAssembly (WASI)** compatibili con [Bubbledesk](https://bubbledesk.app).
+📦 **Template repository** to create **WebAssembly (WASI)** modules compatible with [Bubbledesk](https://bubbledesk.app).
 
-Questa repo contiene la struttura di base per sviluppare, testare e buildare moduli `.wasm` da usare dentro il **sandbox di Bubbledesk** (`bd_sandbox_call`).
+This repo contains the basic structure to develop, test, and build `.wasm` modules to be used inside the **Bubbledesk sandbox** (`bd_sandbox_call`).
 
 ---
 
-## Struttura
+## Structure
 
-Ogni modulo vive in una sua cartella dentro `modules/`:
+Each module lives in its own dedicated folder:
 
 ```
-modules/
- ├── math/          # esempio di modulo
+/
+ ├── math/            # example module
  │   ├── Cargo.toml
  │   └── src/
- │       ├── main.rs
- │       ├── methods.rs
- │       └── examples.rs
- └── template/      # scheletro vuoto pronto da copiare
+ │       ├── functions.rs
+ │       ├── function-examples.rs
+ │       └── main.rs
+ └── module-template/  # empty skeleton ready to copy
      ├── Cargo.toml
      └── src/...
 ```
 
-- `main.rs`: entrypoint generico, gestisce stdin/stdout JSON.  
-- `methods.rs`: qui registri le tue funzioni (`fn op_xxx(...)`).  
-- `examples.rs`: funzioni d’esempio da copiare/adattare.  
+- `main.rs`: generic entrypoint, handles stdin/stdout JSON.  
+- `functions.rs`: here you register your functions (`fn op_xxx(...)`).  
+- `function-examples.rs`: example functions to copy/modify.  
 
 ---
 
-## Requisiti
+## Requirements
 
-- [Rust](https://www.rust-lang.org/) con target **WASI**:
+- [Rust](https://www.rust-lang.org/) with **WASI** target:
   ```bash
   rustup target add wasm32-wasi
   ```
-- [Node.js](https://nodejs.org/) (per lo script di build in JS).
+- [Node.js](https://nodejs.org/) (for the build script in JS).
 
 ---
 
 ## Build
 
-Ogni modulo viene buildato in `.wasm` con:
+Each module is built into `.wasm` with:
 
 ```bash
 npm run build -- <moduleDirName>
 ```
 
-Esempio:
+Example:
 
 ```bash
 npm run build -- math
 ```
 
-Risultato in:
+Result in:
 
 ```
 dist/math.wasm
@@ -61,63 +61,72 @@ dist/math.wasm
 
 ---
 
-## Come funziona
+## How it works
 
 ### Input/Output
 
-- **Input**: il sandbox di Bubbledesk passa JSON via **stdin**:
+- **Input**: the Bubbledesk sandbox passes JSON via **stdin**:
+  Example:
   ```json
-  { "fn": "sum", "args": [3, 5] }
+  {
+    "module_path": "math.wasm",
+    "payload": { "fn": "add", "args": [3, 5] },
+    "caps": { "timeout_ms": 2000, "memory_mb": 32, "stdout_max_kb": 256 },
+    "env": { /* optional */ }
+  }
   ```
-- **Output**: il modulo stampa JSON via **stdout**:
+- **Output**: the module prints JSON via **stdout**:
   ```json
   { "ok": true, "value": 8 }
   ```
 
 ### File system
 
-- Ogni job gira in una cartella sandboxata (`/_sandbox/<jobId>`), mappata come `/` dentro il modulo.  
-- Puoi leggere/scrivere file **solo lì**.
+- Each job runs in a sandboxed folder (`/_sandbox/<jobId>`), mapped as `/` inside the module.  
+- You can read/write files **only there**.
 
 ---
 
-## Workflow per un nuovo modulo
+## Workflow for a new module
 
-1. Copia la cartella `modules/template` con un nuovo nome:
-   ```bash
-   cp -r modules/template modules/my-new-module
-   ```
-2. Modifica `Cargo.toml` con nome e descrizione del modulo.
-3. Implementa le tue funzioni in `methods.rs`.
-4. Builda:
-   ```bash
-   npm run build -- my-new-module
-   ```
-5. Copia `dist/my-new-module.wasm` in `_external_modules/` di Bubbledesk.
+1. Copy the `module-template` folder with a new name:
+    ```bash
+    cp -r module-template my-new-module
+    ```
+2. Edit `Cargo.toml` with the module name and description.
+3. Implement your functions in `functions.rs`.
+4. Build:
+    ```bash
+    npm run build -- my-new-module
+    ```
+5. You can load `dist/my-new-module.wasm` into your Bubbledesk app with:
+    ```ts
+    await window.Bubbledesk.sandbox.module.add("moduleName");
+    ```
+    then select `dist/my-new-module.wasm`.
 
+6. You can list loaded modules with:
+
+    ```ts
+    await window.Bubbledesk.sandbox.module.list();
+    ```
 ---
 
-## Esempio di chiamata da Bubbledesk
+## Example call from Bubbledesk
 
 ```ts
-// Comments in English
-await window.Bubbledesk.sandbox.call("math.wasm", {
-  fn: "sum",
-  args: [10, 32]
+await window.Bubbledesk.sandbox.call({
+  module_path: "math.wasm",
+  payload: { fn: "add", args: [3, 5] },
+  caps: { timeout_ms: 2000, memory_mb: 32, stdout_max_kb: 256 }
 });
 // -> { ok: true, value: 42 }
 ```
 
 ---
 
-## Note
+## Notes
 
-- Mantieni le funzioni pure e deterministic, senza side-effect esterni.
-- Non usare network: è bloccato dal sandbox.
-- Evita stdout/stderr extra: deve esserci solo l’output JSON finale.
-
----
-
-## Licenza
-
-MIT
+- Keep functions pure and deterministic, without external side effects.
+- Do not use network: it is blocked by the sandbox.
+- Avoid extra stdout/stderr: only the final JSON output should be printed.

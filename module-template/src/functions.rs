@@ -3,7 +3,7 @@ use serde_json::{Value, json};
 
 /* ============================
    YOUR FUNCTIONS (BEGIN)
-   - Define your functions here as `fn op_xxx(args: &Value) -> Result<Value, String>`.
+   - Define your functions here as `fn function_name(args: &Value) -> Result<Value, String>`.
    - Functions should:
        * Read inputs from `args` (array or object as you prefer).
        * Return `Ok(Value)` on success, or `Err(String)` on error.
@@ -28,7 +28,7 @@ pub fn dispatch(op: &str, args: &Value) -> Result<Value, String> {
     match op {
         "ping" => op_ping(args),
 
-        // "your_function" => op_your_function(args),
+        // "your_function" => your_function(args),
 
         _ => Err(format!("unknown function: {}", op)),
     }
