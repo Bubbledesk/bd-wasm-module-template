@@ -4,9 +4,9 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 // Import your functions and dispatcher
-mod fn;
-mod fn_examples; // optional, just for reference/examples
-use fn::dispatch;
+mod functions;
+mod function_examples; // optional, just for reference/examples
+use functions::dispatch;
 
 /// Request shape: host sends JSON to stdin.
 #[derive(Debug, Deserialize)]

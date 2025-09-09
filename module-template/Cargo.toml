@@ -1,5 +1,5 @@
 [package]
-name = "bd_wasi_template"
+name = "bd_module"
 version = "0.1.0"
 edition = "2021"
 
