@@ -1,0 +1,7 @@
+{
+  "name": "bd-wasm-modules",
+  "scripts": {
+    "build": "node build.js"
+  },
+  "devDependencies": {}
+}
