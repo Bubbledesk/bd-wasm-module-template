@@ -1,4 +1,3 @@
-// All comments in English
 
 use std::io::{Read, Write};
 use serde::{Deserialize, Serialize};
