@@ -13,23 +13,11 @@ use serde_json::{Value, json};
 
 // ADD YOUR FUNCTIONS HERE
 
-pub fn op_ping(_args: &Value) -> Result<Value, String> {
+pub fn ping(_args: &Value) -> Result<Value, String> {
     Ok(json!({"pong": true}))
 }
 
 /* ============================
    YOUR FUNCTIONS (END)
+   TODO: You must add your functions to dispatcher.rs to expose them.
    ============================ */
-
-
-/// Dispatcher: map "fn" field to functions name.
-/// Add your custom functions in this match.
-pub fn dispatch(op: &str, args: &Value) -> Result<Value, String> {
-    match op {
-        "ping" => op_ping(args),
-
-        // "your_function" => your_function(args),
-
-        _ => Err(format!("unknown function: {}", op)),
-    }
-}

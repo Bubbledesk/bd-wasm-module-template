@@ -3,10 +3,11 @@ use std::io::{Read, Write};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-// Import your functions and dispatcher
+// Import your dispatcher
+mod dispatcher;
 mod functions;
 mod function_examples; // optional, just for reference/examples
-use functions::dispatch;
+use dispatcher::dispatch;
 
 /// Request shape: host sends JSON to stdin.
 #[derive(Debug, Deserialize)]

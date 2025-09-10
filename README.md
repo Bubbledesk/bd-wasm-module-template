@@ -15,6 +15,7 @@ Each module lives in its own dedicated folder:
  ├── math/            # example module
  │   ├── Cargo.toml
  │   └── src/
+ │       ├── dispatcher.rs
  │       ├── functions.rs
  │       ├── function-examples.rs
  │       └── main.rs
@@ -24,8 +25,9 @@ Each module lives in its own dedicated folder:
 ```
 
 - `main.rs`: generic entrypoint, handles stdin/stdout JSON.  
-- `functions.rs`: here you register your functions (`fn op_xxx(...)`).  
-- `function-examples.rs`: example functions to copy/modify.  
+- `dispatcher.rs`: here you register your functions (`"functionName" => your_function(args)`).
+- `functions.rs`: here you write your functions (`pub fn your_function(...)`).
+- `function-examples.rs`: example functions to copy/modify or just as reference.  
 
 ---
 
@@ -94,7 +96,7 @@ dist/math.wasm
     cp -r module-template my-new-module
     ```
 2. Edit `Cargo.toml` with the module name and description.
-3. Implement your functions in `functions.rs`.
+3. Implement your functions in `functions.rs` and register them in `dispatcher.rs`.
 4. Build:
     ```bash
     npm run build -- my-new-module
