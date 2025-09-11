@@ -32,6 +32,9 @@ child.on("exit", (code) => {
       const src = path.join(releaseDir, wasmFile);
       const distDir = path.join(__dirname, dir, "dist");
       const dest = path.join(distDir, wasmFile);
+      if (fs.existsSync(distDir)) {
+        fs.rmSync(distDir, { recursive: true, force: true });
+      }
       fs.mkdirSync(distDir, { recursive: true });
       fs.copyFileSync(src, dest);
       console.log(`📦 Copied ${wasmFile} to ${dir}/`);
