@@ -55,6 +55,8 @@ fn fallback_usage() -> Response {
 }
 
 fn main() {
+    // Debug marker: if this file appears, the module has entered _start
+    let _ = std::fs::write("/__entered_start", b"1");
     match handle_stdin_once() {
         Ok(resp) => print_json(&resp),
         Err(_) => print_json(&fallback_usage()),
