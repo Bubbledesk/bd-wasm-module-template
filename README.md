@@ -4,42 +4,103 @@
 
 This repo contains the basic structure to develop, test, and build `.wasm` modules to be used inside the **Bubbledesk sandbox** (`bd_sandbox_call`).
 
----
 
-## Structure
+Bubbledesk’s **Plugins** provides a secure, sandboxed and flexible runtime for executing [WebAssembly (WASM)](https://webassembly.org/) plugins within the desktop wrapper.  
+This allows developers to extend app capabilities and Bubbledesk to release features without forcing new builds.
 
-Each module lives in its own dedicated folder:
+## Overview
 
+Each worker runs in its own hidden webview window (`bd-worker`) and executes WASM modules inside a Web Worker environment.
+The runtime isolates every execution, providing:
+- **File system sandboxing**
+- **Automatic timeout and queue limits**
+- **JSON-based communication**
+- **Cross-platform consistency (macOS, Windows, Linux)**
+
+Workers are managed via the JavaScript bridge at `window.Bubbledesk.worker`.
+
+
+## Architecture
+
+The system is composed of three layers:
+
+| Layer | Language | Responsibility |
+|--------|-----------|----------------|
+| **Frontend** | JavaScript or TypeScript | Provides the API under `window.Bubbledesk.worker` |
+| **Backend Host** | Rust + Tauri | Manages worker lifecycle, WASM validation, job queueing, and communication |
+| **Execution Layer (Web Worker)** | JavaScript + [WASM](https://webassembly.org/) | Executes the loaded WebAssembly module and streams stdout/stderr |
+
+All communication between host and worker is event-driven via the Tauri IPC system.
+
+## Input/Output Standard
+
+The communication protocol is **line-delimited JSON**:
+
+### Input (from host → plugin)
+
+The Bubbledesk sandbox passes JSON via **stdin**:
+
+```json
+{ "fn": "add", "args": [3, 5] }
 ```
-/
- ├── math/            # example module
- │   ├── Cargo.toml
- │   └── src/
- │       ├── dispatcher.rs
- │       ├── functions.rs
- │       ├── function-examples.rs
- │       └── main.rs
- └── module-template/  # empty skeleton ready to copy
-     ├── Cargo.toml
-     └── src/...
+> *this is an example*
+
+### Output (from plugin → host)
+
+The plugin must write **a single line** of JSON to **stdout**, terminated by `\n`.
+
+#### Success:
+```json
+{"ok": true, "value": 8}
+```
+> *this is an example*
+
+#### Error:
+```json
+{"ok": false, "error": "division by zero"}
+```
+> *this is an example*
+
+This format is mandatory — the worker will reject malformed or multiline JSON.
+
+## Security and Sandbox
+
+- Each plugin executes in its own **isolated environment**.
+    > Each job runs in a sandboxed folder (`/_sandbox/<jobId>`), mapped as `/` inside the module. Here (and here only) you can read/write files with the plugin.
+- **No network access** or external FS access is allowed.
+- Max 64 concurrent pending jobs.
+- Input limited to 1 MB per call.
+- WASM modules must start with the standard `\0asm` magic bytes.
+
+
+
+## WASM Plugin Structure
+
+Each plugin is an independent **Rust project** compiled for the `wasm32-wasip1` target and executed as a WASI-compatible process.
+
+Example structure:
+```
+math/
+ ├─dist/
+ |   └─ math.wasm
+ ├─ src/
+ │   ├─ main.rs
+ │   ├─ dispatcher.rs
+ │   └─ functions.rs
+ ├─ Cargo.toml
+ └─ package.json
 ```
 
-- `main.rs`: generic entrypoint, handles stdin/stdout JSON.  
-- `dispatcher.rs`: here you register your functions (`"functionName" => your_function(args)`).
-- `functions.rs`: here you write your functions (`pub fn your_function(...)`).
-- `function-examples.rs`: example functions to copy/modify or just as reference.  
-
----
+Plugins communicate with the host via **stdin/stdout**, using a strict JSON protocol.
 
 ## Requirements
 
 - [Rust](https://www.rust-lang.org/) with **WASI** target:
+
   ```bash
   rustup target add wasm32-wasi
   ```
-- [Node.js](https://nodejs.org/) (for the build script in JS).
-
----
+- [Node.js](https://nodejs.org/) (for the build JS script `build.js`).
 
 ## Build
 
@@ -55,41 +116,26 @@ Example:
 npm run build -- math
 ```
 
-Result in:
+Result in `dist/` folder, example:
 
 ```
 dist/math.wasm
 ```
 
----
 
-## How it works
+## Directory Layout
 
-### Input/Output
+| Directory | Purpose |
+|------------|----------|
+| `/_external_modules/` | Holds installed WASM modules |
+| `/_sandbox/<jobId>` | Temporary runtime area, wiped at startup |
 
-- **Input**: the Bubbledesk sandbox passes JSON via **stdin**:
-  Example:
-  ```json
-  {
-    "module_path": "math.wasm",
-    "payload": { "fn": "add", "args": [3, 5] },
-    "caps": { "timeout_ms": 2000, "memory_mb": 32, "stdout_max_kb": 256 },
-    "env": { /* optional */ }
-  }
-  ```
-- **Output**: the module prints JSON via **stdout**:
-  ```json
-  { "ok": true, "value": 8 }
-  ```
+## Develop a Plugin
 
-### File system
-
-- Each job runs in a sandboxed folder (`/_sandbox/<jobId>`), mapped as `/` inside the module.  
-- You can read/write files **only there**.
-
----
-
-## Workflow for a new module
+1. Fork the [`bd-wasm-module-template`](https://github.com/Bubbledesk/bd-wasm-module-template) repo from Bubbledesk's GitHub:
+    ```url
+    https://github.com/Bubbledesk/bd-wasm-module-template
+    ```
 
 1. Copy the `module-template` folder with a new name:
     ```bash
@@ -103,32 +149,32 @@ dist/math.wasm
     ```
 5. You can load `dist/my-new-module.wasm` into your Bubbledesk app with:
     ```ts
-    await window.Bubbledesk.sandbox.module.add("moduleName");
+    await window.Bubbledesk.worker.modules.add("moduleName");
     ```
     then select `dist/my-new-module.wasm`.
 
 6. You can list loaded modules with:
 
     ```ts
-    await window.Bubbledesk.sandbox.module.list();
+    await window.Bubbledesk.worker.modules.list();
     ```
+7. You can call it like this:
+    ```js
+    const res = await window.Bubbledesk.worker.call("moduleName.wasm", {
+        fn: "function_name",
+        args: [...]
+    });
+
+    console.log(JSON.parse(res).value);
+    ```
+    
 ---
 
-## Example call from Bubbledesk
+### Notes
 
-```ts
-await window.Bubbledesk.sandbox.call({
-  module_path: "math.wasm",
-  payload: { fn: "add", args: [3, 5] },
-  caps: { timeout_ms: 2000, memory_mb: 32, stdout_max_kb: 256 }
-});
-// -> { ok: true, value: 42 }
-```
-
----
-
-## Notes
-
+- Workers are managed via the JavaScript bridge at `window.Bubbledesk.worker`.
 - Keep functions pure and deterministic, without external side effects.
 - Do not use network: it is blocked by the sandbox.
 - Avoid extra stdout/stderr: only the final JSON output should be printed.
+- All modules must follow the **stdin/stdout JSON protocol** strictly. Multi-line, non-JSON, or binary outputs will be discarded.
+- Avoid infinite loops or blocking operations inside your WASM module — they will trigger a timeout and the worker will be restarted.
